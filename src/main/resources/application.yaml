@@ -1,3 +1,32 @@
 spring:
   application:
     name: iot-platform
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis123
+
+# MQTT 接入配置（无认证时 username/password 可省略）
+mqtt:
+  url: tcp://localhost:1883
+  client-id: iot-platform-sub
+  topics: device/+/data
+
+# 双数据源（注意是 jdbc-url，不是 url——直接绑定到 HikariDataSource）
+datasource:
+  mysql:
+    jdbc-url: jdbc:mysql://localhost:3306/iot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: example123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  tdengine:
+    jdbc-url: jdbc:TAOS-WS://localhost:6041/iot?user=root&password=taosdata
+    username: root
+    password: taosdata
+    driver-class-name: com.taosdata.jdbc.ws.WebSocketDriver
+    connection-test-query: SELECT 1
+
+logging:
+  level:
+    com.example.iotplatform: INFO

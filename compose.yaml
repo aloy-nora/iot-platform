@@ -29,8 +29,7 @@ services:
     environment:
       - TAOS_FQDN=tdengine             # 关键：容器内 FQDN 解析为服务名
     ports:
-      - "6030:6030"     # 原生连接
-      - "6041:6041"     # REST / taosAdapter（Spring Boot 走这个，必留）
+      - "6041:6041"     # REST / WebSocket / taosAdapter（应用走这个，必留）
       - "6060:6060"     # 可选：taosExplorer Web 管理界面 http://localhost:6060
     volumes:
       - taos_data:/var/lib/taos
