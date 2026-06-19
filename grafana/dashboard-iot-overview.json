@@ -1,0 +1,40 @@
+{
+  "uid": "iot-overview",
+  "title": "IoT 总览",
+  "tags": ["iot"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "全部设备平均温度 (10m 窗口)",
+      "datasource": { "type": "tdengine-datasource", "uid": "efpig2vzjkjr4a" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "celsius" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tdengine-datasource", "uid": "efpig2vzjkjr4a" },
+          "sql": "select _wstart as ts, avg(temp) as temp from iot.env_sensor where ts >= now - 6h interval(10m)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "设备 d_001 温湿度 (10m 窗口)",
+      "datasource": { "type": "tdengine-datasource", "uid": "efpig2vzjkjr4a" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tdengine-datasource", "uid": "efpig2vzjkjr4a" },
+          "sql": "select _wstart as ts, avg(temp) as temp, avg(humi) as humi from iot.d_001 where ts >= now - 6h interval(10m)"
+        }
+      ]
+    }
+  ]
+}

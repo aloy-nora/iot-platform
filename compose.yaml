@@ -28,6 +28,8 @@ services:
     restart: unless-stopped
     environment:
       - TAOS_FQDN=tdengine             # 关键：容器内 FQDN 解析为服务名
+      - TZ=Asia/Shanghai               # 统一时区，避免与 app/gen_data/Grafana 错位
+      - TAOS_TIMEZONE=Asia/Shanghai
     ports:
       - "6041:6041"     # REST / WebSocket / taosAdapter（应用走这个，必留）
       - "6060:6060"     # 可选：taosExplorer Web 管理界面 http://localhost:6060
