@@ -1,0 +1,116 @@
+name: iot-platform
+
+services:
+  # ---------- MQTT Broker ----------
+  emqx:
+    image: emqx/emqx:5.10.4
+    container_name: iot-emqx
+    restart: unless-stopped
+    ports:
+      - "1883:1883"     # MQTT 接入端口（设备/MQTTX 连这个）
+      - "8083:8083"     # MQTT over WebSocket
+      - "18083:18083"   # Dashboard 控制台（默认 admin / public）
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+    networks: [iot]
+
+  # ---------- 时序数据库 ----------
+  tdengine:
+    image: tdengine/tsdb:3.3.7.0
+    container_name: iot-tdengine
+    hostname: tdengine
+    restart: unless-stopped
+    environment:
+      - TAOS_FQDN=tdengine             # 关键：容器内 FQDN 解析为服务名
+    ports:
+      - "6030:6030"     # 原生连接
+      - "6041:6041"     # REST / taosAdapter（Spring Boot 走这个，必留）
+      - "6060:6060"     # 可选：taosExplorer Web 管理界面 http://localhost:6060
+    volumes:
+      - taos_data:/var/lib/taos
+      - taos_log:/var/log/taos
+    healthcheck:
+      test: ["CMD", "taos", "-s", "show databases;"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+    networks: [iot]
+
+  # ---------- 关系库（设备台账/元数据）----------
+  mysql:
+    image: mysql:8.0
+    container_name: iot-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: example123
+      MYSQL_DATABASE: iot
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pexample123"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+    networks: [iot]
+
+  # ---------- 缓存（实时值/限流）----------
+  redis:
+    image: redis:7-alpine
+    container_name: iot-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "redis123", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [iot]
+
+  # ---------- 可视化大盘 ----------
+  grafana:
+    image: grafana/grafana:12.4.4
+    container_name: iot-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_INSTALL_PLUGINS: tdengine-datasource   # 第4周接 TDengine 要用，先装好
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    networks: [iot]
+
+volumes:
+  emqx_data:
+  emqx_log:
+  taos_data:
+  taos_log:
+  mysql_data:
+  redis_data:
+  grafana_data:
+
+networks:
+  iot:
+    driver: bridge
