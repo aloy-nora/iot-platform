@@ -28,6 +28,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     runtimeOnly 'com.mysql:mysql-connector-j'
     implementation 'com.taosdata.jdbc:taos-jdbcdriver:3.8.4'
+    // Modbus 协议（W5 网关）
+    implementation 'com.ghgande:j2mod:3.2.1'
     // 工具
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

@@ -27,6 +27,14 @@ datasource:
     driver-class-name: com.taosdata.jdbc.ws.WebSocketDriver
     connection-test-query: SELECT 1
 
+# Modbus → MQTT 网关（W5）。enabled=false 可关闭模拟器+网关
+modbus:
+  enabled: true
+  slave-port: 1502
+  unit-id: 1
+  device-id: modbus01
+  poll-interval-ms: 5000
+
 logging:
   level:
     com.example.iotplatform: INFO
