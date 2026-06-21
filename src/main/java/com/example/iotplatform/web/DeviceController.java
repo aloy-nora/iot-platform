@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,5 +46,24 @@ public class DeviceController {
         String sql = "SELECT ts, temp, humi, light, soil_ph FROM iot.`" + sub + "` "
                 + "WHERE ts >= NOW - " + hours + "h ORDER BY ts";
         return tdengine.queryForList(sql);
+    }
+
+    /** 设备影子：台账(MySQL) + 实时值(Redis) + 最近告警(Redis) 的合并视图。 */
+    @GetMapping("/{id}/shadow")
+    public Map<String, Object> shadow(@PathVariable String id) {
+        List<Map<String, Object>> rows = mysql.queryForList(
+                "SELECT device_id, online, last_seen, msg_count FROM device WHERE device_id = ?", id);
+        Map<String, Object> shadow = rows.isEmpty() ? new HashMap<>() : rows.get(0);
+        shadow.put("reported", redis.opsForHash().entries("device:latest:" + id));
+        shadow.put("lastAlarm", redis.opsForValue().get("device:alarm:" + id));
+        return shadow;
+    }
+
+    /** 最近告警列表（MySQL alarm 表）。 */
+    @GetMapping("/alarms")
+    public List<Map<String, Object>> alarms(@RequestParam(defaultValue = "50") int limit) {
+        return mysql.queryForList(
+                "SELECT id, device_id, metric, value, threshold, level, message, created_at "
+                        + "FROM alarm ORDER BY id DESC LIMIT ?", limit);
     }
 }

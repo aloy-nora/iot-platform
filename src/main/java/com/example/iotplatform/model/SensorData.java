@@ -10,10 +10,10 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SensorData {
-    private Float temp;       // 空气温度
-    private Float humi;       // 空气湿度
+    private Double temp;      // 空气温度
+    private Double humi;      // 空气湿度
     private Integer light;    // 光照度
-    private Float soilPh;     // 土壤 PH（JSON key: soilPh）
+    private Double soilPh;    // 土壤 PH（JSON key: soilPh）
     private String location;  // 可选：安装位置
     private String devType;   // 可选：设备类型
 }
