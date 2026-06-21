@@ -1,5 +1,6 @@
 package com.example.iotplatform.service;
 
+import com.example.iotplatform.alarm.AlarmService;
 import com.example.iotplatform.model.SensorData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ public class SensorIngestService {
 
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redis;
+    private final AlarmService alarmService;
     @Qualifier("mysqlJdbcTemplate")
     private final JdbcTemplate mysql;
     @Qualifier("tdengineJdbcTemplate")
@@ -57,6 +59,7 @@ public class SensorIngestService {
         writeTdengine(deviceId, data);
         upsertDevice(deviceId, now);
         cacheLatest(deviceId, data, now);
+        alarmService.check(deviceId, data);   // W7：阈值告警
     }
 
     private String extractDeviceId(String topic) {

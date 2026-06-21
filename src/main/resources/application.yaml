@@ -42,6 +42,14 @@ netty:
   device-id: tcp01
   send-interval-ms: 5000
 
+# 告警阈值 + 离线判定（W7）
+alarm:
+  temp-min: 5
+  temp-max: 32
+  humi-min: 20
+  humi-max: 85
+  offline-seconds: 30
+
 logging:
   level:
     com.example.iotplatform: INFO
