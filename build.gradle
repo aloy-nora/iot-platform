@@ -30,6 +30,9 @@ dependencies {
     implementation 'com.taosdata.jdbc:taos-jdbcdriver:3.8.4'
     // Modbus 协议（W5 网关）
     implementation 'com.ghgande:j2mod:3.2.1'
+    // Netty TCP 接入（W6）
+    implementation 'io.netty:netty-handler'
+    implementation 'io.netty:netty-codec'
     // 工具
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

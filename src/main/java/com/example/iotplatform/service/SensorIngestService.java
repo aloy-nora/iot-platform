@@ -18,13 +18,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 核心：消费 MQTT 消息 → 落到三处存储。
+ * 统一落库核心：把一条设备数据写到三处存储。
+ * 接入通道有多条（MQTT、Netty TCP……），都汇聚到 {@link #ingest(String, SensorData)}。
  * - TDengine：时序明细（自动建子表）
- * - MySQL   ：设备台账（upsert：在线状态/最近上报/累计条数）
- * - Redis   ：实时最新值（hash，给大盘秒读）
- * <p>
- * 借助 lombok.config 的 copyableAnnotations，@RequiredArgsConstructor 会把
- * 字段上的 @Qualifier 复制到构造参数，从而区分两个 JdbcTemplate。
+ * - MySQL   ：设备台账（upsert）
+ * - Redis   ：实时最新值（hash）
  */
 @Slf4j
 @Service
@@ -38,6 +36,7 @@ public class SensorIngestService {
     @Qualifier("tdengineJdbcTemplate")
     private final JdbcTemplate tdengine;
 
+    /** MQTT 接入通道：从 topic 取 deviceId、解析 payload，再交给统一 ingest。 */
     @ServiceActivator(inputChannel = "mqttInboundChannel")
     public void handle(Message<String> message) {
         String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
@@ -45,16 +44,19 @@ public class SensorIngestService {
         try {
             String deviceId = extractDeviceId(topic);          // device/{deviceId}/data
             SensorData data = objectMapper.readValue(payload, SensorData.class);
-            LocalDateTime now = LocalDateTime.now();
-
-            writeTdengine(deviceId, data);
-            upsertDevice(deviceId, now);
-            cacheLatest(deviceId, data, now);
-
-            log.info("ingest ok: device={} payload={}", deviceId, payload);
+            ingest(deviceId, data);
+            log.info("ingest ok (mqtt): device={} payload={}", deviceId, payload);
         } catch (Exception e) {
-            log.error("ingest failed: topic={} payload={} err={}", topic, payload, e.getMessage(), e);
+            log.error("ingest failed (mqtt): topic={} payload={} err={}", topic, payload, e.getMessage(), e);
         }
+    }
+
+    /** 统一落库入口：任何接入通道解析出 (deviceId, data) 后调用。 */
+    public void ingest(String deviceId, SensorData data) {
+        LocalDateTime now = LocalDateTime.now();
+        writeTdengine(deviceId, data);
+        upsertDevice(deviceId, now);
+        cacheLatest(deviceId, data, now);
     }
 
     private String extractDeviceId(String topic) {

@@ -35,6 +35,13 @@ modbus:
   device-id: modbus01
   poll-interval-ms: 5000
 
+# Netty TCP 接入网关（W6）。enabled=false 可关闭服务端+模拟器
+netty:
+  enabled: true
+  port: 9000
+  device-id: tcp01
+  send-interval-ms: 5000
+
 logging:
   level:
     com.example.iotplatform: INFO
