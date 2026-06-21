@@ -12,8 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 阈值告警：ingest 时检查温/湿是否越界，越界则落 MySQL alarm 表 + 写 Redis 最新告警。
- * W8 的企业微信推送将挂在这里（notify 方法预留）。
+ * 阈值告警：ingest 时检查温/湿是否越界，越界则落 MySQL alarm 表 + 写 Redis 最新告警，
+ * 并交由 AlarmNotifier 异步推送（去重限流）。
  */
 @Slf4j
 @Service
@@ -21,6 +21,7 @@ import java.util.List;
 public class AlarmService {
 
     private final AlarmProps props;
+    private final AlarmNotifier notifier;
     @Qualifier("mysqlJdbcTemplate")
     private final JdbcTemplate mysql;
     private final StringRedisTemplate redis;
@@ -54,11 +55,6 @@ public class AlarmService {
                 deviceId, metric, value, threshold, "WARN", message);
         redis.opsForValue().set("device:alarm:" + deviceId, message);
         log.warn("ALARM device={} {}", deviceId, message);
-        notify(deviceId, message);
-    }
-
-    /** W8 预留：企业微信/钉钉推送。当前仅占位。 */
-    private void notify(String deviceId, String message) {
-        // TODO W8: push to WeCom robot
+        notifier.push(deviceId, metric, message);   // W8：异步推送（去重限流）
     }
 }

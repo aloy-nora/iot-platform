@@ -50,6 +50,13 @@ alarm:
   humi-max: 85
   offline-seconds: 30
 
+# 告警推送（W8）。webhook-url 为空走 dry-run 仅打印；填入企业微信/钉钉机器人地址即真推
+push:
+  enabled: true
+  type: wecom
+  webhook-url: ""
+  dedup-seconds: 60
+
 logging:
   level:
     com.example.iotplatform: INFO
