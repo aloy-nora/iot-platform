@@ -1,14 +1,18 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
+import Hls from 'hls.js'
 
 const API = '/api'                 // 走 Vite 代理 → 后端 8080
 const devices = ref([])
 const selectedId = ref(null)
 const error = ref('')
 const chartEl = ref(null)
+const videoEl = ref(null)
+const videoError = ref('')
 let chart = null
 let timer = null
+let hls = null
 
 async function loadDevices() {
   try {
@@ -59,10 +63,28 @@ function selectDevice(id) {
 
 const fmt = v => (v === undefined || v === null || v === 'NULL' ? '—' : v)
 
+function initVideo() {
+  const url = '/cam01/index.m3u8'           // 走 Vite 代理 → MediaMTX，同源
+  const video = videoEl.value
+  if (Hls.isSupported()) {
+    hls = new Hls({ liveDurationInfinity: true })
+    hls.loadSource(url)
+    hls.attachMedia(video)
+    hls.on(Hls.Events.ERROR, (_e, data) => {
+      if (data.fatal) videoError.value = '视频加载失败：' + data.type
+    })
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url                          // Safari 原生支持 HLS
+  } else {
+    videoError.value = '浏览器不支持 HLS'
+  }
+}
+
 onMounted(async () => {
   await nextTick()
   chart = echarts.init(chartEl.value)
   window.addEventListener('resize', () => chart && chart.resize())
+  initVideo()
   await loadDevices()
   timer = setInterval(loadDevices, 10000)   // 每 10s 刷新设备实时值
 })
@@ -70,6 +92,7 @@ onMounted(async () => {
 onUnmounted(() => {
   clearInterval(timer)
   chart && chart.dispose()
+  hls && hls.destroy()
 })
 </script>
 
@@ -104,8 +127,15 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <section class="chart-wrap">
-      <div ref="chartEl" class="chart"></div>
+    <section class="grid2">
+      <div class="panel">
+        <div ref="chartEl" class="chart"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📹 现场视频 · cam01</div>
+        <video ref="videoEl" class="video" autoplay muted controls playsinline></video>
+        <p v-if="videoError" class="err">{{ videoError }}</p>
+      </div>
     </section>
   </div>
 </template>
@@ -130,6 +160,10 @@ body { margin: 0; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", 
 .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 14px; }
 .metrics span { display: inline-block; width: 38px; color: #8a94a6; }
 .seen { margin-top: 10px; color: #b6bccb; font-size: 12px; }
-.chart-wrap { background: #fff; border: 1px solid #e6e9f0; border-radius: 10px; padding: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+.panel { background: #fff; border: 1px solid #e6e9f0; border-radius: 10px; padding: 12px; }
+.panel-title { font-size: 14px; color: #1f2d3d; margin-bottom: 8px; }
 .chart { width: 100%; height: 360px; }
+.video { width: 100%; height: 360px; background: #000; border-radius: 6px; object-fit: contain; }
 </style>

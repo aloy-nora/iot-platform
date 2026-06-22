@@ -103,6 +103,20 @@ services:
       retries: 6
     networks: [iot]
 
+  # ---------- 流媒体服务器（W9 视频接入）----------
+  # -ffmpeg 变体自带 ffmpeg，用 runOnDemand 生成测试视频源（免真实摄像头）
+  mediamtx:
+    image: bluenviron/mediamtx:1.19.1-ffmpeg
+    container_name: iot-mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554"   # RTSP（设备/摄像头推流入口）
+      - "8888:8888"   # HLS（浏览器播放）
+      - "8889:8889"   # WebRTC（低延迟播放，备用）
+    volumes:
+      - ./mediamtx/mediamtx.yml:/mediamtx.yml:ro
+    networks: [iot]
+
 volumes:
   emqx_data:
   emqx_log:

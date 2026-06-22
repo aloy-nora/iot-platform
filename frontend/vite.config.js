@@ -7,7 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8080'
+      '/api': 'http://localhost:8080',
+      // HLS 视频流代理到 MediaMTX，转成同源避免跨域/cookie 问题（W9）
+      '/cam01': 'http://localhost:8888'
     }
   }
 })

@@ -1,0 +1,28 @@
+# MediaMTX 配置（W9 视频接入）
+# HLS 打开，低延迟模式；定义一路测试摄像头 cam01，按需用 ffmpeg 生成测试画面。
+
+logLevel: info
+
+# ---- HLS（浏览器播放）----
+hls: yes
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsVariant: mpegts          # 经典 HLS：最兼容、无 cookieCheck 跨域坑（延迟数秒，演示足够）
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsAllowOrigins: ['*']       # 允许前端跨域拉流
+
+# ---- WebRTC（备用，低延迟）----
+webrtc: yes
+webrtcAddress: :8889
+
+paths:
+  # 一路"摄像头" cam01：有人观看时(runOnDemand)才启动 ffmpeg 生成 640x480 测试画面 + 时间戳
+  cam01:
+    runOnDemand: >
+      ffmpeg -re -f lavfi -i testsrc=size=640x480:rate=15
+      -f lavfi -i sine=frequency=800
+      -pix_fmt yuv420p -c:v libx264 -preset ultrafast -tune zerolatency -g 30
+      -c:a aac -f rtsp rtsp://localhost:$RTSP_PORT/cam01
+    runOnDemandRestart: yes
+    runOnDemandCloseAfter: 15s    # 无人观看 15s 后关闭 ffmpeg，省资源
