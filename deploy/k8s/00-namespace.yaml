@@ -1,0 +1,6 @@
+# Namespace：给这套平台单独开一个"命名空间"，把资源和默认空间隔开。
+# 类比：docker-compose 里的一个 project / 一个网络域。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: iot

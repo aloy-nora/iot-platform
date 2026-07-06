@@ -1,0 +1,99 @@
+# ============================================================
+# 一个文件里放 4 个对象，用 --- 分隔。K8s 会按需创建。
+# 对应 compose 里的 mysql 服务，配置一致（mysql:8.0 / root=example123 / db=iot / utf8mb4 / 上海时区）
+# ============================================================
+
+# ---------- 1. Secret：存敏感信息（数据库密码），不明文写进 Deployment ----------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql-secret
+  namespace: iot
+type: Opaque
+stringData:                      # stringData 可以直接写明文，K8s 存进去时自动 base64（比手动编码省事）
+  MYSQL_ROOT_PASSWORD: example123
+
+---
+# ---------- 2. PVC：申请一块持久磁盘，Pod 重建/漂移数据都还在 ----------
+# 这是 compose 里 `volumes: mysql_data:/var/lib/mysql` 在 K8s 里的对应物。
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: iot
+spec:
+  accessModes:
+    - ReadWriteOnce              # 单节点读写（MySQL 这种单实例够用）
+  resources:
+    requests:
+      storage: 1Gi              # 申请 1G；kind 自带 local-path 存储自动满足
+
+---
+# ---------- 3. Deployment：真正"跑 MySQL 容器"的控制器 ----------
+# 它保证"始终有 1 个 MySQL Pod 在跑"，挂了自动拉起。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: iot
+spec:
+  replicas: 1                    # 副本数=1（数据库别随便多副本）
+  selector:
+    matchLabels:
+      app: mysql                 # ↓ 这个 Deployment 管理哪些 Pod：带 app=mysql 标签的
+  template:                      # ↓ Pod 的"模板"，照这个造 Pod
+    metadata:
+      labels:
+        app: mysql               # Pod 打上 app=mysql 标签（跟上面 selector 对应，也给 Service 找）
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          args:                  # 对应 compose 的 command
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:                     # 从上面的 Secret 取密码，不明文
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              value: iot
+            - name: TZ                       # 时区！你踩过的坑，容器默认 UTC 会差 8 小时
+              value: Asia/Shanghai
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql      # MySQL 数据目录 → 挂到 PVC
+          readinessProbe:                    # 就绪探针：探通了才让 Service 给它导流量
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost", "-pexample123"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:                     # 存活探针：探不通就重启容器
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost", "-pexample123"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mysql-pvc             # 绑定上面申请的 PVC
+
+---
+# ---------- 4. Service：给这组 Pod 一个稳定的集群内访问入口 ----------
+# Pod 的 IP 会变，Service 的名字/IP 不变。集群内其他服务用 "mysql" 这个名字就能连到它（DNS）。
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: iot
+spec:
+  type: ClusterIP                # 只在集群内可访问（默认类型）
+  selector:
+    app: mysql                   # 把流量转给带 app=mysql 标签的 Pod
+  ports:
+    - port: 3306                 # Service 暴露的端口
+      targetPort: 3306           # 转发到容器的端口

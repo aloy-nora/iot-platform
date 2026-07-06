@@ -1,0 +1,19 @@
+# 缩小 docker build 上下文：只需要 build/libs 里的 jar，其余全排除
+.git
+.gradle
+src
+frontend
+grafana
+mediamtx
+scripts
+sql
+deploy
+docs
+*.md
+gradle
+gradlew
+gradlew.bat
+build/classes
+build/resources
+build/tmp
+build/reports

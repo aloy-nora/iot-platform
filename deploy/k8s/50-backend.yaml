@@ -1,0 +1,92 @@
+# ============================================================
+# 后端服务。ConfigMap 只覆盖"连接地址"（localhost → Service 名），
+# 其余配置沿用镜像里打包的 application.yaml。
+# ============================================================
+
+# ---------- ConfigMap：覆盖配置（明文非敏感项；密码仍在打包配置里，生产应挪进 Secret） ----------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: iot
+data:
+  application.yaml: |
+    spring:
+      data:
+        redis:
+          host: redis
+    mqtt:
+      url: tcp://emqx:1883
+    datasource:
+      mysql:
+        jdbc-url: "jdbc:mysql://mysql:3306/iot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai"
+      tdengine:
+        jdbc-url: "jdbc:TAOS-WS://tdengine:6041/iot?user=root&password=taosdata"
+
+---
+# ---------- Deployment ----------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: iot-backend:dev
+          imagePullPolicy: IfNotPresent          # 本地 kind load 的镜像，别去 Hub 拉
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: file:/config/                # 加载 /config 下的 application.yaml，覆盖打包配置
+            - name: TZ
+              value: Asia/Shanghai
+          ports:
+            - containerPort: 8080
+              name: web
+            - containerPort: 9000
+              name: netty-tcp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30               # 要连 4 个依赖 + 起 Netty/Modbus，给足时间
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: config
+          configMap:
+            name: backend-config
+
+---
+# ---------- Service ----------
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: iot
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080

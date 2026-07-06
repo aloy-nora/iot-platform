@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+data:
+  application.yaml: |
+    spring:
+      data:
+        redis:
+          host: redis
+    mqtt:
+      url: tcp://emqx:1883
+    datasource:
+      mysql:
+        jdbc-url: "jdbc:mysql://mysql:3306/iot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai"
+      tdengine:
+        jdbc-url: "jdbc:TAOS-WS://tdengine:6041/iot?user=root&password=taosdata"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: {{ .Values.backend.image }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: file:/config/
+            - name: TZ
+              value: Asia/Shanghai
+          ports:
+            - containerPort: 8080
+              name: web
+            - containerPort: 9000
+              name: netty-tcp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 5
+      volumes:
+        - name: config
+          configMap:
+            name: backend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+    - name: web
+      port: 8080
+      targetPort: 8080

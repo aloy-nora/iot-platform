@@ -1,0 +1,6 @@
+apiVersion: v2
+name: iot-platform
+description: IoT 平台 Helm Chart（MySQL / Redis / TDengine / EMQX / 后端）
+type: application
+version: 0.1.0          # Chart 自身版本（改模板/结构时升）
+appVersion: "0.0.1"     # 被部署应用的版本（后端 jar 版本）

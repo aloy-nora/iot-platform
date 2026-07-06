@@ -1,0 +1,9 @@
+# MySQL 建表脚本 → ConfigMap，挂到 /docker-entrypoint-initdb.d/。
+# mysql 镜像会在【首次初始化空数据目录】时自动按文件名顺序执行里面的 *.sql。
+# .Files.Glob 读取 chart 内 files/ 下的 sql，.AsConfig 转成 “文件名: 内容” 的 data 条目。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-initdb
+data:
+{{ (.Files.Glob "files/*.sql").AsConfig | indent 2 }}

@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: tdengine-pvc
+  namespace: iot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tdengine
+  namespace: iot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tdengine
+  template:
+    metadata:
+      labels:
+        app: tdengine
+    spec:
+      containers:
+        - name: tdengine
+          image: tdengine/tsdb:3.3.7.0
+          env:
+            - name: TAOS_FQDN
+              value: localhost      # 单节点：taosd 连自己走回环，避开 K8s 里 Service 名解析到 ClusterIP 的坑
+            - name: TZ
+              value: Asia/Shanghai
+            - name: TAOS_TIMEZONE
+              value: Asia/Shanghai
+          ports:
+            - containerPort: 6041
+            - containerPort: 6060
+          volumeMounts:
+            - name: taos-storage
+              mountPath: /var/lib/taos
+              subPath: data
+            - name: taos-storage
+              mountPath: /var/log/taos
+              subPath: log
+          readinessProbe:
+            tcpSocket:
+              port: 6041          # app 走 taosAdapter 的 6041，探它更贴合
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            tcpSocket:
+              port: 6041
+            initialDelaySeconds: 60   # 给 TDengine 充分启动时间
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 5
+      volumes:
+        - name: taos-storage
+          persistentVolumeClaim:
+            claimName: tdengine-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tdengine
+  namespace: iot
+spec:
+  type: ClusterIP
+  selector:
+    app: tdengine
+  ports:
+    - port: 6041
+      targetPort: 6041
