@@ -23,3 +23,12 @@ emqx:
 backend:
   image: iot-backend:dev
   replicas: 1
+
+grafana:
+  image: grafana/grafana:12.4.4
+  adminUser: admin
+  adminPassword: admin123
+  storage: 1Gi
+
+mediamtx:
+  image: bluenviron/mediamtx:1.19.1-ffmpeg

@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mediamtx-config
+data:
+  mediamtx.yml: |
+{{ .Files.Get "files/mediamtx.yml" | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mediamtx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mediamtx
+  template:
+    metadata:
+      labels:
+        app: mediamtx
+    spec:
+      containers:
+        - name: mediamtx
+          image: {{ .Values.mediamtx.image }}
+          ports:
+            - containerPort: 8554
+              name: rtsp
+            - containerPort: 8888
+              name: hls
+            - containerPort: 8889
+              name: webrtc
+          volumeMounts:
+            - name: config
+              mountPath: /mediamtx.yml
+              subPath: mediamtx.yml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: mediamtx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mediamtx
+spec:
+  type: ClusterIP
+  selector:
+    app: mediamtx
+  ports:
+    - name: rtsp
+      port: 8554
+      targetPort: 8554
+    - name: hls
+      port: 8888
+      targetPort: 8888
+    - name: webrtc
+      port: 8889
+      targetPort: 8889
