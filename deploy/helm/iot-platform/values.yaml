@@ -1,3 +1,7 @@
+# ⚠️ 安全说明：下方密码均为【本地 demo 默认值】，非真实密钥，仅供本地 kind 演示。
+#    生产环境请勿直接使用，用 K8s Secret / 外部密钥管理注入覆盖
+#    （如 helm install --set mysql.rootPassword=xxx，或 -f values-secret.yaml 且该文件加入 .gitignore）。
+#
 # 所有可变参数集中在此。模板里用 {{ .Values.xxx }} 引用。
 # 命名空间不写在这里——用 `helm install -n iot --create-namespace` 由 Release 决定（Helm 惯例）。
 
