@@ -25,7 +25,7 @@ emqx:
   storage: 1Gi
 
 backend:
-  image: ghcr.io/aloy-nora/iot-backend:998a3f05197fbc75292380b4361d62b2647110a2
+  image: ghcr.io/aloy-nora/iot-backend:6dc13ca0cae0e1d9e9bba64080d701cbb3628291
   replicas: 1
 
 grafana:
