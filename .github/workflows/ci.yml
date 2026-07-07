@@ -9,7 +9,7 @@ on:
 
 # 授权：推镜像到 GHCR 需要 packages:write（用内置的 GITHUB_TOKEN，无需自己配密钥）
 permissions:
-  contents: read
+  contents: write        # write：CI 要把新镜像 tag 写回 values.yaml 并推回
   packages: write
 
 jobs:
@@ -45,3 +45,16 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/iot-backend:latest
             ghcr.io/${{ github.repository_owner }}/iot-backend:${{ github.sha }}
+
+      # 把新镜像 tag 写回 values.yaml 并推回 → values 变化触发 ArgoCD 自动部署（真正的 CD 闭环）
+      - name: 写回镜像 tag
+        env:
+          OWNER: ${{ github.repository_owner }}   # 用 env 承接 github 上下文，避免注入风险
+          SHA: ${{ github.sha }}
+        run: |
+          sed -i -E "s|(image: ghcr.io/$OWNER/iot-backend:).*|\1$SHA|" deploy/helm/iot-platform/values.yaml
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/helm/iot-platform/values.yaml
+          git commit -m "ci: deploy $SHA [skip ci]" || { echo "无变化，跳过"; exit 0; }
+          git push origin HEAD:master
