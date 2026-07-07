@@ -15,7 +15,9 @@
   | `04-维护操作.md` | 重启、更新、扩缩容、持久化验证等日常维护 |
   | `05-清单规范与模板.md` | 可复制模板 + 命名/字段顺序规范 |
   | `06-概念与原理.md` | 底层概念/原理（exec/PID1/tini、ENTRYPOINT vs CMD、command/args 等） |
-  | `07-Helm.md` | Helm 打包（Chart/values/模板、.Files/initdb、postStart、常用命令） |
+  | `07-Helm.md` | Helm 打包（Chart/values/模板、.Files/initdb、postStart、常用命令、服务开关） |
+  | `08-CI-CD.md` | GitHub Actions CI→GHCR、CD 闭环（sha/write-back/detached HEAD/防递归、单仓 vs 双仓） |
+  | `09-ArgoCD-GitOps.md` | ArgoCD 安装/Application/交接/同步机制/坑 |
 - **命名**：数字前缀 `01- 02-…` 控制顺序（与清单文件 `00- 10- 20-` 前缀同思路）。
 - **排查条目**：一律按「现象 → 原因 → 解决 → 原理」写，方便日后检索，也直接是面试素材。
 

@@ -47,3 +47,20 @@ helm uninstall iot -n iot                              # 卸载整套
 - **`[INFO] icon is recommended`**：INFO 级、可忽略；仅发布到 chart 仓库时才需加 `icon:`。
 - **裸 manifest 与 Helm 不能并存同名资源**：先 `kubectl delete namespace iot` 清掉手动部署的，再 `helm install`。
 - **一键复现验证**：`kubectl delete namespace iot` → `helm install …` → 整套服务 + 表结构全自动重建（backend 可能等依赖时重启一两次再稳定）。
+
+## 服务开关（feature toggle，按需省资源）
+
+把整个模板用 `{{- if .Values.X.enabled }} … {{- end }}` 包起来，values 里给 `enabled: true/false`，即可一键开关某服务：
+
+```yaml
+# templates/grafana.yaml
+{{- if .Values.grafana.enabled }}
+# ...整个 Secret/PVC/Deployment/Service...
+{{- end }}
+```
+```yaml
+# values.yaml
+grafana:
+  enabled: false     # 关掉 → 渲染为空 → ArgoCD prune 从集群删除（省资源），改回 true 即恢复
+```
+用途：资源紧张时临时关掉非核心服务（见 `03` 第 13 条）；也是"生产/测试环境装不同子集"的标准手法。
