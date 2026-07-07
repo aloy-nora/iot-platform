@@ -38,3 +38,7 @@ grafana:
 mediamtx:
   enabled: false        # 资源紧张，暂时关闭（改 true 即恢复）
   image: bluenviron/mediamtx:1.19.1-ffmpeg
+
+prometheus:
+  enabled: true
+  image: quay.io/prometheus/prometheus:v3.1.0   # 用 quay（Docker Hub 被墙），节点直连可拉
