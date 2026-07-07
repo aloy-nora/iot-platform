@@ -50,12 +50,11 @@ helm uninstall iot -n iot
 
 kubectl exec -n iot deploy/mysql -- sh -c 'echo "① 容器默认用户(entrypoint 以谁的身份跑):"; id; echo; echo "② mysqld(PID1)真实 uid:"; grep -i "^Uid:" /proc/1/status; echo; echo "③ 数据目录属主(谁 chown 的):"; ls -ld /var/lib/mysql'
 
-kubectl port-forward -n iot svc/grafana 3000:3000         # 浏览器 localhost:3000 (admin/admin123)
-# 看 HLS 流(会触发 runOnDemand 起 ffmpeg):
-kubectl port-forward -n iot svc/mediamtx 8888:8888        # 浏览器开 http://localhost:8888/cam01/
+# localhost:3000 (admin/admin123)
+kubectl port-forward -n iot svc/grafana 3000:3000
+# http://localhost:8888/cam01/
+kubectl port-forward -n iot svc/mediamtx 8888:8888
 
-# 标记删除坏 PVC(pod 还挂着,暂不真删)
 kubectl delete pvc mysql-pvc -n iot --wait=false
-# 删 Pod → 卷卸载 → PVC 真正删除、数据目录清空
 kubectl delete pod -n iot -l app=mysql
 

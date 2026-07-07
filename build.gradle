@@ -26,6 +26,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // 监控指标（Prometheus）：actuator 暴露端点 + micrometer 输出 Prometheus 格式
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
     runtimeOnly 'com.mysql:mysql-connector-j'
     implementation 'com.taosdata.jdbc:taos-jdbcdriver:3.8.4'
     // Modbus 协议（W5 网关）

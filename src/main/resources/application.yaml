@@ -60,3 +60,10 @@ push:
 logging:
   level:
     com.example.iotplatform: INFO
+
+# 监控：暴露 actuator 的 health 和 prometheus 端点（/actuator/prometheus 供 Prometheus 抓取）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
