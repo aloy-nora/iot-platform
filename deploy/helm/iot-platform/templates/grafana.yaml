@@ -1,3 +1,4 @@
+{{- if .Values.grafana.enabled }}
 # Grafana 模板。两个关键点见下方注释：① fsGroup 卷权限；② 不装联网插件。
 apiVersion: v1
 kind: Secret
@@ -86,3 +87,4 @@ spec:
   ports:
     - port: 3000
       targetPort: 3000
+{{- end }}

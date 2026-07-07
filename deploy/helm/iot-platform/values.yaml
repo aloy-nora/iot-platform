@@ -29,10 +29,12 @@ backend:
   replicas: 1
 
 grafana:
+  enabled: false        # 资源紧张，暂时关闭（改 true 即恢复）
   image: grafana/grafana:12.4.4
   adminUser: admin
   adminPassword: admin123
   storage: 1Gi
 
 mediamtx:
+  enabled: false        # 资源紧张，暂时关闭（改 true 即恢复）
   image: bluenviron/mediamtx:1.19.1-ffmpeg

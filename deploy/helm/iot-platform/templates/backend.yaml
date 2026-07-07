@@ -48,6 +48,11 @@ spec:
             - name: config
               mountPath: /config
               readOnly: true
+          startupProbe:                 # 慢启动保护：启动期间只探这个，成功后 liveness 才接管
+            tcpSocket:
+              port: 8080
+            failureThreshold: 30         # 30 × 10s = 5 分钟启动窗口，资源紧时也不会被误杀
+            periodSeconds: 10
           readinessProbe:
             tcpSocket:
               port: 8080
