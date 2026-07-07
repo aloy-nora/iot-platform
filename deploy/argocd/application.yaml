@@ -1,0 +1,22 @@
+# ArgoCD Application：告诉 ArgoCD "盯着 GitHub 上这个 Helm chart，把它同步到 iot 命名空间"。
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: iot-platform
+  namespace: argocd            # Application 资源本身住在 argocd 命名空间
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/aloy-nora/iot-platform.git   # 公开仓库，匿名可拉
+    targetRevision: master
+    path: deploy/helm/iot-platform                           # chart 在仓库里的路径
+    # 无需额外配置，ArgoCD 检测到 Chart.yaml 会自动按 Helm 渲染
+  destination:
+    server: https://kubernetes.default.svc                   # 部署到本集群
+    namespace: iot                                           # 目标命名空间
+  syncPolicy:
+    automated:
+      prune: true          # Git 里删了的资源，集群里也自动删
+      selfHeal: true       # 有人手动改了集群，自动拉回 Git 的样子
+    syncOptions:
+      - CreateNamespace=true   # iot 命名空间不存在则自动建
