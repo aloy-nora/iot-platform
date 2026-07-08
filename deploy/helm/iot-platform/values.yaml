@@ -29,7 +29,7 @@ backend:
   replicas: 1
 
 grafana:
-  enabled: false        # 资源紧张，暂时关闭（改 true 即恢复）
+  enabled: true         # 做监控，开回来接 Prometheus
   image: grafana/grafana:12.4.4
   adminUser: admin
   adminPassword: admin123
