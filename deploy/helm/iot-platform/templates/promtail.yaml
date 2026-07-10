@@ -1,0 +1,122 @@
+{{- if .Values.promtail.enabled }}
+# Promtail：日志采集器。DaemonSet 每节点一个，tail /var/log/pods 下所有容器日志，推给 Loki。
+# 注：Promtail 已进入维护期，Grafana 推 Alloy 作为继任者；此处用 Promtail 因其最简单、概念可迁移。
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: promtail
+---
+# ClusterRole：读 pod/node 元数据（服务发现 + 打标签用）。集群级，因为要跨所有 namespace 采集。
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: promtail
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/proxy", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding：把身份(SA) 和 权限(ClusterRole) 绑一起。
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: promtail
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: promtail
+subjects:
+  - kind: ServiceAccount
+    name: promtail
+    namespace: {{ .Release.Namespace }}   # SA 所在命名空间 = Release 命名空间(iot)
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+    positions:
+      filename: /run/promtail/positions.yaml    # 记录每个文件读到哪，重启不从头重读
+    clients:
+      - url: http://loki:3100/loki/api/v1/push   # Loki 的日志写入端点
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod                            # 调 K8s API 发现所有 pod —— 这就是要 RBAC 的原因
+        pipeline_stages:
+          - cri: {}                              # 解析 containerd/CRI 日志行前缀(时间戳/stream)
+        relabel_configs:
+          # 把 K8s 元数据转成 Loki 里可查的 label
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+          - action: labelmap                     # 把 pod 自身的 label 也带过来(如 app=backend)
+            regex: __meta_kubernetes_pod_label_(.+)
+          # 关键：拼出该容器日志文件真实路径。separator=/ 把 uid、container 拼成 "uid/container"，
+          # 于是 /var/log/pods/*uid/container/*.log 正好命中 <ns>_<pod>_<uid>/<container>/0.log
+          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+            target_label: __path__
+            separator: /
+            replacement: /var/log/pods/*$1/*.log
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail            # 用上面那个有权限的身份，而非 default SA
+      securityContext:
+        runAsUser: 0                          # /var/log/pods 下日志是 root 属主，需 root 才读得到
+      # 日志采集器要覆盖「每一个节点」，包括真实集群里带 NoSchedule 污点的 control-plane 节点，
+      # 否则会漏采控制面日志。故容忍所有 NoSchedule 污点（可移植/防御性写法）。
+      # 注：本地单节点 kind 的节点【无污点】(kind 单节点会去掉 control-plane 污点)，这里不加也能调度；
+      #     保留它是为了换到有污点的真集群时不漏节点。toleration 与「是不是 DaemonSet」无关，只与目标节点是否带污点有关。
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+      containers:
+        - name: promtail
+          image: {{ .Values.promtail.image }}
+          args: ["-config.file=/etc/promtail/promtail.yaml"]
+          # DaemonSet 每实例只发现「自己节点」的 pod，Promtail 靠 HOSTNAME 判断自己在哪个节点。
+          # 容器里 HOSTNAME 默认=Pod 名（非节点名）→ 字段选择器匹配不到 pod → 0 目标。
+          # 用 downward API 把真实节点名注入 HOSTNAME，选择器 spec.nodeName 才对得上。
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - containerPort: 9080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+            - name: positions
+              mountPath: /run/promtail
+            - name: varlog
+              mountPath: /var/log             # 挂宿主机 /var/log(含 /var/log/pods)
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: positions
+          emptyDir: {}
+        - name: varlog
+          hostPath:
+            path: /var/log
+{{- end }}

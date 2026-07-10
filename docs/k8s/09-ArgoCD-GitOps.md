@@ -31,6 +31,22 @@ kubectl apply -f deploy/argocd/application.yaml     # ArgoCD 接管
 ```
 接管后不再有 helm release —— ArgoCD 自己渲染 chart + apply + 跟踪资源。
 
+### 交接后想本地快速调试新组件（别用 helm upgrade！）
+
+正道是 **改文件 → git push → ArgoCD 同步**。但迭代新组件（如加 Loki）时 push 一次 CI 就全量重建后端、还得等 reconcile，太慢。此时：
+
+```bash
+# ① 暂停自动同步，防止 ArgoCD 把本地临时装的资源当垃圾 prune 掉
+kubectl -n argocd patch application iot-platform --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
+# ② 用 ArgoCD 同款方式(template+apply)本地上，可只渲染指定模板；-n 保证 .Release.Namespace 正确
+helm template iot deploy/helm/iot-platform -n iot -s templates/loki.yaml -s templates/promtail.yaml | kubectl apply -n iot -f -
+# ③ 调通后：commit+push，再恢复自动同步，交还 ArgoCD
+kubectl -n argocd patch application iot-platform --type merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'
+```
+
+**为什么不是 `helm upgrade`**：ArgoCD 接管后集群里**没有 helm release 记录**，现有资源也不带 helm 所有权标注。`helm upgrade` 会报 `has no deployed releases`；加 `--install` 则撞 `invalid ownership metadata / already exists and is not managed by Helm`。而 `helm template | kubectl apply` 和 ArgoCD 做的**完全一样**（渲染 YAML → apply），幂等、无所有权冲突、恢复同步时无缝衔接。
+**原则：谁在管这个 release，就用谁的方式改。** 纯 helm 阶段用 `helm upgrade`；交给 ArgoCD 后一律走 git / template+apply。
+
 ## 工作机制（何时同步，务必理解）
 
 - 每 **~3 分钟** reconcile（或配 GitHub webhook 即时）：拉 master 最新 commit → **只渲染 `path` 目录**的 chart → 和集群实际对比 → **只应用 diff**。

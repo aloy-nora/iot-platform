@@ -42,3 +42,12 @@ mediamtx:
 prometheus:
   enabled: true
   image: quay.io/prometheus/prometheus:v3.1.0   # 用 quay（Docker Hub 被墙），节点直连可拉
+
+loki:
+  enabled: true
+  image: grafana/loki:3.4.1
+  storage: 1Gi          # 预留；本轮先用 emptyDir，PVC 以后再说
+
+promtail:
+  enabled: true
+  image: grafana/promtail:3.4.1

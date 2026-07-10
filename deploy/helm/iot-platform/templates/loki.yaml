@@ -1,0 +1,98 @@
+{{- if .Values.loki.enabled }}
+# Loki：日志的“Prometheus”——只索引标签(label)，正文压缩存文件。
+# 单体(monolithic)模式：一个进程扛下接收/存储/查询，够本地 demo，省去分布式组件。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-config
+data:
+  loki.yaml: |
+    auth_enabled: false            # 单租户，关掉多租户鉴权头(X-Scope-OrgID)
+    server:
+      http_listen_port: 3100
+    common:
+      path_prefix: /loki           # 数据根目录（挂 emptyDir）
+      replication_factor: 1        # 单副本
+      ring:
+        kvstore:
+          store: inmemory          # 单体无需外部一致性存储，内存 ring 即可
+      storage:
+        filesystem:                # 文件存储（非对象存储/S3），最省事
+          chunks_directory: /loki/chunks
+          rules_directory: /loki/rules
+    schema_config:
+      configs:
+        - from: 2020-10-24
+          store: tsdb              # 3.x 推荐的索引引擎
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    limits_config:
+      retention_period: 168h       # 日志保留 7 天
+      allow_structured_metadata: true
+    analytics:
+      reporting_enabled: false     # 关闭联网匿名上报（离线环境别卡启动）
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loki
+  template:
+    metadata:
+      labels:
+        app: loki
+    spec:
+      # loki 镜像以 UID/GID 10001 运行；emptyDir 默认 root 属主，10001 写不进 /loki。
+      # fsGroup=10001 让卷属组=10001 → loki 可写（同 grafana fsGroup=472 那个坑）。
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: {{ .Values.loki.image }}
+          args: ["-config.file=/etc/loki/loki.yaml"]   # 用我们的配置，覆盖镜像自带的默认配置
+          ports:
+            - containerPort: 3100
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki               # 挂整个目录，里面就一个 loki.yaml
+            - name: data
+              mountPath: /loki                   # 存 chunks/index 的地方
+          readinessProbe:
+            httpGet:
+              path: /ready                       # Loki 就绪端点（起来前返回 503）
+              port: 3100
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: 3100
+            initialDelaySeconds: 45              # 给足启动时间，别误杀
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: loki-config
+        - name: data
+          emptyDir: {}                           # demo：重启丢日志可接受；要持久化改 PVC
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki
+spec:
+  type: ClusterIP
+  selector:
+    app: loki
+  ports:
+    - port: 3100
+      targetPort: 3100
+{{- end }}

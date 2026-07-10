@@ -22,6 +22,7 @@ metadata:
   name: backend
 spec:
   replicas: {{ .Values.backend.replicas }}
+  revisionHistoryLimit: 2         # 只留 2 个旧 RS 供回滚，其余自动回收（CI 频繁改镜像会攒一堆空 RS）
   selector:
     matchLabels:
       app: backend
