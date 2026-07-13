@@ -1,0 +1,94 @@
+{{- if .Values.grafana.enabled }}
+# Grafana 看板 provisioning（以代码形式）：Grafana 启动即自动加载，无需手动导入。
+# provider 配置告诉 Grafana 去哪个目录读看板 JSON。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: iot
+        orgId: 1
+        folder: 'IoT Platform'
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# 看板 JSON（自建，针对本平台真实指标写的 PromQL）。注意：legendFormat 不用双花括号插值，避开 Helm 冲突。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+data:
+  iot-overview.json: |
+    {
+      "uid": "iot-overview",
+      "title": "IoT Platform · 后端概览",
+      "tags": ["iot"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "refresh": "10s",
+      "time": { "from": "now-30m", "to": "now" },
+      "panels": [
+        {
+          "id": 1, "type": "stat", "title": "运行时长",
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [ { "refId": "A", "expr": "process_uptime_seconds" } ]
+        },
+        {
+          "id": 2, "type": "stat", "title": "活跃线程",
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "targets": [ { "refId": "A", "expr": "jvm_threads_live_threads" } ]
+        },
+        {
+          "id": 3, "type": "timeseries", "title": "CPU 使用率",
+          "gridPos": { "h": 6, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "expr": "process_cpu_usage", "legendFormat": "进程" },
+            { "refId": "B", "expr": "system_cpu_usage", "legendFormat": "系统" }
+          ]
+        },
+        {
+          "id": 4, "type": "timeseries", "title": "JVM 堆内存",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+          "targets": [
+            { "refId": "A", "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})", "legendFormat": "已用" },
+            { "refId": "B", "expr": "sum(jvm_memory_max_bytes{area=\"heap\"})", "legendFormat": "上限" }
+          ]
+        },
+        {
+          "id": 5, "type": "timeseries", "title": "HTTP 吞吐 (QPS)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "targets": [ { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_count[1m]))", "legendFormat": "总QPS" } ]
+        },
+        {
+          "id": 6, "type": "timeseries", "title": "HTTP 平均延迟",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+          "targets": [ { "refId": "A", "expr": "sum(rate(http_server_requests_seconds_sum[1m])) / sum(rate(http_server_requests_seconds_count[1m]))", "legendFormat": "平均延迟" } ]
+        },
+        {
+          "id": 7, "type": "timeseries", "title": "DB 连接池活跃连接",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "targets": [ { "refId": "A", "expr": "hikaricp_connections_active" } ]
+        }
+      ]
+    }
+{{- end }}

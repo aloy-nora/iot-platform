@@ -67,3 +67,11 @@ process_cpu_usage{application="iot-platform"}                                  #
 jvm_threads_live_threads{application="iot-platform"}                           # 活跃线程
 rate(http_server_requests_seconds_count{application="iot-platform"}[1m])       # 每秒请求
 ```
+
+## 自建看板 provisioning（as-code，替代社区看板导入）
+
+`templates/grafana-dashboards.yaml`：两个 ConfigMap——**provider 配置**(`/etc/grafana/provisioning/dashboards/`，`options.path` 指向看板目录) + **看板 JSON**(挂到 `/var/lib/grafana/dashboards/`)。Grafana 启动即自动加载，进 git 可复现。
+- **数据源固定 uid**：给 Prometheus 数据源加 `uid: prometheus`，看板 JSON 里 `"datasource":{"type":"prometheus","uid":"prometheus"}` 稳定引用（不靠导入映射，无 No Data）。
+- **7 个面板 PromQL**（本平台真实指标）：运行时长 `process_uptime_seconds`；CPU `process_cpu_usage`/`system_cpu_usage`；堆内存 `sum(jvm_memory_used_bytes{area="heap"})`；线程 `jvm_threads_live_threads`；QPS `sum(rate(http_server_requests_seconds_count[1m]))`；**平均延迟 `sum(rate(..._sum[1m]))/sum(rate(..._count[1m]))`**（Micrometer Timer 经典）；DB 连接 `hikaricp_connections_active`。
+- **坑①**：看板 JSON 里 `legendFormat` 的双花括号插值会和 Helm 冲突（`missing value for command`）——用静态 legend 或 `.Files.Get`。**注释里也别写字面双花括号。**
+- **坑②**：改数据源 `uid` 后 Grafana 启动报 `Datasource provisioning error: data source not found`——旧 PVC 存了旧 uid 记录冲突。Grafana 全靠 provisioning、PVC 无需保留 → **删 grafana PVC 重建**即干净。

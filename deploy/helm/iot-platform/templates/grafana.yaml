@@ -19,6 +19,7 @@ data:
     datasources:
       - name: Prometheus
         type: prometheus
+        uid: prometheus                 # 固定 uid，供 provisioned 看板稳定引用
         access: proxy
         url: http://prometheus:9090     # 用 Service DNS 指向 Prometheus
         isDefault: true
@@ -83,6 +84,12 @@ spec:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
               readOnly: true
+            - name: dashboard-provider                            # 看板 provider 配置
+              mountPath: /etc/grafana/provisioning/dashboards
+              readOnly: true
+            - name: dashboards                                    # 看板 JSON（provider 从这读）
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /api/health
@@ -104,6 +111,12 @@ spec:
         - name: datasources
           configMap:
             name: grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 apiVersion: v1
 kind: Service
