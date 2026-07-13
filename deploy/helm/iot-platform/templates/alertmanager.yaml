@@ -1,0 +1,70 @@
+{{- if .Values.alertmanager.enabled }}
+# Alertmanager：接收 Prometheus 的 firing 告警 → 去重/分组/路由/静默/抑制 → 发通知。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+data:
+  alertmanager.yml: |
+    route:
+      receiver: default
+      group_by: ['alertname']    # 按 alertname 分组：同名告警合并成一条通知
+      group_wait: 10s            # 首次分组等 10s，攒一波再发
+      group_interval: 30s        # 同组有新增再发的间隔
+      repeat_interval: 1h        # 同一告警重复提醒的间隔
+    receivers:
+      - name: default
+        # demo：不实际发通知（在 Alertmanager UI/API 里看"已接收"即可验证链路）。
+        # 真实通知在此加，例如：
+        #   webhook_configs: [{ url: 'http://your-webhook/alert' }]
+        #   email_configs / wechat_configs / slack_configs ...
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: {{ .Values.alertmanager.image }}
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/tmp/alertmanager    # 用 /tmp（可写），避开卷权限
+          ports:
+            - containerPort: 9093
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager/alertmanager.yml
+              subPath: alertmanager.yml
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+spec:
+  type: ClusterIP
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+{{- end }}

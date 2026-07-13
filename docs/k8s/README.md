@@ -21,6 +21,7 @@
   | `10-监控-Prometheus-Grafana.md` | actuator+micrometer 暴露指标、Prometheus 抓取、Grafana 数据源 provisioning、看板坑 |
   | `11-日志-Loki-Promtail.md` | Loki 单体部署、Promtail DaemonSet+RBAC、HOSTNAME 节点坑、relabel 拼路径、LogQL |
   | `12-追踪-Tempo-OTel.md` | Tempo 部署、OTel Java Agent 自动埋点（Dockerfile+env）、OTLP 4317/4318 坑、TraceQL |
+  | `13-告警-Alertmanager.md` | Prometheus 告警规则(rule_files)、指向 AM、Alertmanager 部署/路由/分组、{{}}冲突坑 |
 - **命名**：数字前缀 `01- 02-…` 控制顺序（与清单文件 `00- 10- 20-` 前缀同思路）。
 - **排查条目**：一律按「现象 → 原因 → 解决 → 原理」写，方便日后检索，也直接是面试素材。
 

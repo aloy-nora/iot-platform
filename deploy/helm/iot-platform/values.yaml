@@ -55,3 +55,7 @@ promtail:
 tempo:
   enabled: true
   image: grafana/tempo:2.6.1
+
+alertmanager:
+  enabled: true
+  image: quay.io/prometheus/alertmanager:v0.27.0   # 用 quay（Docker Hub 被墙），节点直连可拉
