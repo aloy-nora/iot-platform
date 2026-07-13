@@ -26,6 +26,10 @@ data:
         type: loki
         access: proxy
         url: http://loki:3100           # 用 Service DNS 指向 Loki（日志数据源）
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://tempo:3200          # 用 Service DNS 指向 Tempo（追踪数据源）
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

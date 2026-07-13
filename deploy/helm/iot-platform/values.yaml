@@ -51,3 +51,7 @@ loki:
 promtail:
   enabled: true
   image: grafana/promtail:3.4.1
+
+tempo:
+  enabled: true
+  image: grafana/tempo:2.6.1

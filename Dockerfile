@@ -11,6 +11,10 @@ WORKDIR /app
 # 版本号变了记得同步改这里
 COPY build/libs/iot-platform-0.0.1-SNAPSHOT.jar app.jar
 
+# OpenTelemetry Java Agent（自动埋点）：构建期从 GitHub 下载烧进镜像。
+# 运行时是否启用由 JAVA_TOOL_OPTIONS 决定（见 K8s 清单 env）；不设就等于没挂，无副作用。
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/otel-javaagent.jar
+
 # 容器时区，避免日志/时间差 8 小时
 ENV TZ=Asia/Shanghai
 

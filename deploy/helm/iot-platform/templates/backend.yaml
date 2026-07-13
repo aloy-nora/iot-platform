@@ -40,6 +40,17 @@ spec:
               value: file:/config/
             - name: TZ
               value: Asia/Shanghai
+            # OpenTelemetry 自动埋点：挂 agent + 把 trace 发给 Tempo（OTLP gRPC 4317）
+            - name: JAVA_TOOL_OPTIONS
+              value: "-javaagent:/app/otel-javaagent.jar"
+            - name: OTEL_SERVICE_NAME
+              value: iot-backend
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://tempo:4317
+            - name: OTEL_METRICS_EXPORTER          # 指标已用 Prometheus，别重复导出
+              value: none
+            - name: OTEL_LOGS_EXPORTER              # 日志已用 Loki
+              value: none
           ports:
             - containerPort: 8080
               name: web
