@@ -46,7 +46,7 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: iot-backend
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: http://tempo:4317
+              value: http://tempo:4318      # OTel agent 2.x 默认 http/protobuf → 用 4318（4317 是 gRPC）
             - name: OTEL_METRICS_EXPORTER          # 指标已用 Prometheus，别重复导出
               value: none
             - name: OTEL_LOGS_EXPORTER              # 日志已用 Loki
